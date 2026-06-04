@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wizard Troubles Online (Vercel Ready)</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      text-align: center;
+      font-family: monospace;
+      background-color: #1a1a1a;
+      color: white;              
+      margin-top: 20px;
+    }
+    #grid {
+      font-size: 18px; 
+      letter-spacing: 3px;
+      line-height: 1.2;
+      margin: 20px auto;
+      white-space: nowrap; 
+      display: inline-block; 
+      text-align: center;
+    }
+    button {
+      font-size: 16px;
+      padding: 10px;
+      margin: 4px;
+      cursor: pointer;
+      background-color: #333;
+      color: white;
+      border: 2px solid #555;
+      border-radius: 5px;
+    }
+    button:hover { background-color: #555; }
+    .menu-container { margin-top: 40px; }
+    .menu-title {
+      font-size: 32px;
+      color: #9b59b6;
+      text-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+    }
+    .btn-purple { background-color: #8e44ad; border-color: #a29bfe; font-size: 20px; padding: 12px 24px;}
+    .btn-orange { background-color: #e67e22; border-color: #f39c12; font-size: 20px; padding: 12px 24px;}
+    .btn-green  { background-color: #2ecc71; border-color: #27ae60; font-size: 20px; padding: 12px 24px;}
+    .btn-blue   { background-color: #2980b9; border-color: #3498db; }
+    
+    textarea, input[type="text"], input[type="number"] {
+      background-color: #2c3e50;
+      color: #fff;
+      font-family: monospace;
+      font-size: 16px;
+      padding: 8px;
+      text-align: center;
+      border: 2px solid #34495e;
+      border-radius: 4px;
+    }
+    input[type="text"] { width: 80%; max-width: 300px; margin: 4px 0;}
+    input[type="number"] { width: 60px; }
+    .code-box { width: 85%; max-width: 500px; height: 60px; margin-top: 10px; }
+    
+    .designer-grid-container {
+      display: inline-block;
+      background-color: #2c3e50;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 15px auto;
+      user-select: none;
+      max-width: 95vw;
+      overflow-x: auto; 
+    }
+    .designer-row { display: flex; justify-content: center; white-space: nowrap; }
+    .designer-cell {
+      width: 28px; height: 28px; font-size: 16px; padding: 0; margin: 1px;
+      line-height: 28px; text-align: center; background-color: #1a1a1a;
+      border: 1px solid #444; border-radius: 4px;
+    }
+    .tool-palette { margin: 10px auto; max-width: 500px; }
+    .active-tool-indicator { border: 2px solid #2ecc71 !important; background-color: #27ae60 !important; }
+
+    .browser-container {
+      max-width: 650px; margin: 20px auto; background: #222;
+      border: 2px solid #555; border-radius: 8px; padding: 15px;
+      max-height: 300px; overflow-y: auto;
+    }
+    .browser-card {
+      background: #2c3e50; border: 1px solid #34495e; border-radius: 6px;
+      margin-bottom: 12px; padding: 12px; display: flex;
+      justify-content: space-between; align-items: center; text-align: left;
+    }
+    .card-info h3 { margin: 0 0 5px 0; color: #e67e22; font-size: 18px; }
+    .card-info p { margin: 0; font-size: 13px; color: #bdc3c7; }
+    .card-meta { font-size: 11px; color: #2ecc71; margin-top: 4px; font-weight: bold; }
+    
+    .hub-box {
+      background: #222; padding: 15px; border-radius: 8px;
+      max-width: 550px; margin: 15px auto; border: 2px dashed #e67e22;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="mobile-debug" style="background:#222; color:#2ecc71; font-family:monospace; padding:8px; font-size:11px; border:1px dashed #555; text-align:left; margin:10px; border-radius:4px;">
+    <strong>System Status:</strong> <span id="debug-text">All scripts loaded smoothly. Ready for Vercel deploy.</span>
+  </div>
+
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      let box = document.getElementById('mobile-debug');
+      if(box) box.style.background = "#330000";
+      let txt = document.getElementById('debug-text');
+      if(txt) {
+        txt.style.color = "#ff3333";
+        txt.innerText = message + " (Line " + lineno + ")";
+      }
+      return false;
+    };
+  </script>
+
+  <div id="screen-menu" class="menu-container">
+    <h1 class="menu-title">🔮 WIZARD TROUBLES 🔮</h1>
+    <p>Cloud Connected Grid Puzzle Engine</p>
+    <br><br>
+    <button class="btn-purple" onclick="navTo('game'); startCampaign();">Play Campaign Levels 🧙‍♂️</button><br>
+    <button class="btn-orange" onclick="openDesignerHub()">Level Designer Hub 🛠️</button><br>
+    <button class="btn-green" onclick="navTo('play-custom'); fetchCloudLevels();">Community Dashboard 🚀</button>
+  </div>
+
+  <div id="screen-designer-hub" class="menu-container" style="display: none;">
+    <h1 style="color: #e67e22;">Your levels</h1>
+    <p>Make or change levels you made</p>
+
+    <div class="hub-box">
+      <h3>✨ Create From Scratch</h3>
+      <button class="btn-orange" onclick="createNewBlankMap()">Open New Blank Canvas</button>
+    </div>
+
+    <div class="hub-box">
+      <h3>💾 Edit Saved / Published Maps</h3>
+      <p style="font-size:12px; color:#aaa; margin-top:-5px;">Pulls records from your active workspace and cloud data nodes</p>
+      <button class="btn-blue" onclick="syncAndRefreshHubList()">🔄 Load/Sync Map Directory</button>
+      
+      <div id="hub-map-list" style="margin-top:15px; max-height:250px; overflow-y:auto; padding:5px;">
+        <p style="color:#666; font-style:italic;">Directory list idle. Click sync to fetch.</p>
+      </div>
+    </div>
+
+    <br>
+    <button onclick="navTo('menu')">Back to Main Menu</button>
+  </div>
+
+  <div id="screen-create" class="menu-container" style="display: none;">
+    <h1 style="color: #e67e22; margin-bottom: 5px;">Canvas Editor</h1>
+    <p id="editing-map-title" style="color:#2ecc71; margin:0 0 10px 0; font-weight:bold;">Editing: New Unnamed Map</p>
+    
+    <div>
+      Grid Size: <input type="number" id="edit-size" value="7" min="4" max="15" onchange="initVisualEditorGrid(true)"> &nbsp;|&nbsp;
+      Fog: <input type="checkbox" id="edit-fog">
+    </div>
+
+    <div class="tool-palette">
+      <p style="margin: 5px 0;">Blocks:</p>
+      <button id="tool-." onclick="setTool('.')" class="active-tool-indicator">⬛ Floor</button>
+      <button id="tool-T" onclick="setTool('T')">🌲 Tree</button>
+      <button id="tool-M" onclick="setTool('M')">💥 Mine</button>
+      <button id="tool-B" onclick="setTool('B')">📦 Box</button>
+      <button id="tool-H" onclick="setTool('H')">🏠 House</button>
+      <button id="tool-S" onclick="setTool('S')">🧊 Ice</button>
+      <button id="tool-X" onclick="setTool('X')">🍂 Leaf</button>
+      <button id="tool-K" onclick="setTool('K')">🔑 Key</button>
+      <button id="tool-P" onclick="setTool('P')">🔴 Trigger</button>
+      <button id="tool-🎯" onclick="setTool('🎯')">🔵 Plate</button>
+      <button id="tool-G" onclick="setTool('G')">🔒 Gate</button>
+      <button id="tool-#" onclick="setTool('#')">🕳️ Pit</button>
+      <button id="tool-W" onclick="setTool('W')">💰 Goal</button>
+    </div>
+
+    <div id="canvas-workspace" class="designer-grid-container"></div>
+    <br>
+    
+    <button class="btn-orange" onclick="generateLevelCode()">GENERATE MAP BLUEPRINT 📋</button>
+    <br>
+    <textarea id="output-code" class="code-box" readonly placeholder="Your map string will generate here..."></textarea>
+    <br><br>
+
+    <div style="background: #222; padding: 15px; border-radius: 6px; max-width: 500px; margin: 10px auto; border: 1px dashed #e67e22;">
+      <h3>Publish Globally / Save Changes</h3>
+      <input type="text" id="pub-name" placeholder="Level Name"><br>
+      <input type="text" id="pub-creator" placeholder="Your Creator Name"><br>
+      <input type="text" id="pub-desc" placeholder="Brief puzzle clues/description..."><br>
+      Select Difficulty: 
+      <select id="pub-diff" style="background:#2c3e50; color:white; padding:8px; border:none; margin-top:5px;">
+        <option value="🟢 Easy">🟢 Easy</option>
+        <option value="🟡 Medium">🟡 Medium</option>
+        <option value="🔴 Hard">🔴 Hard</option>
+        <option value="💀 Expert">💀 Expert</option>
+      </select><br><br>
+      <button class="btn-green" style="font-size:15px;" onclick="publishLevelToCloud()">SHARE WITH THE WORLD 🌐</button>
+    </div>
+    <br>
+    <button onclick="navTo('designer-hub')">Exit</button>
+  </div>
+
+  <div id="screen-play-custom" class="menu-container" style="display: none;">
+    <h1 style="color: #2ecc71;">Custom Levels</h1>
+    <p>Play levels made by the community</p>
+    
+    <button onclick="fetchCloudLevels()" style="font-size:13px; padding:5px 10px; background:#444;">🔄 Refresh List</button>
+    
+    <div class="browser-container" id="community-level-wrapper">
+      <p style="color:#aaa; padding:20px;">Fetching from cloud database...</p>
+    </div>
+
+    <button onclick="navTo('menu')">Back to Main Menu</button>
+  </div>
+
+  <div id="screen-game" style="display: none;">
+    <h2 id="level-heading" style="margin-bottom:0;">Level 1</h2>
+    <div>
+      <h2 id="pos" style="margin-top:5px; color:#aaa; font-size:16px;">Position: 0x, 0y</h2>
+      <div id="grid"></div>
+      <p id="story">Welcome to your quest!</p>
+    </div>
+    <div>
+      <button onclick="handleMove(0, 1)">⬆️ </button><br>
+      <button onclick="handleMove(-1, 0)">⬅️ </button>
+      <button onclick="handleMove(1, 0)">➡️ </button><br>
+      <button onclick="handleMove(0, -1)">⬇️ </button>
+    </div>
+    <br>
+    <button onclick="navTo('menu')">Exit to Menu</button>
+  </div>
+  
+<script>
+  // ==========================================
+  // ☁️ DATABASE ROUTING ENGINE
+  // ==========================================
+  const SUPABASE_URL = "https://qiwntogwgyueooztrxwn.supabase.co"; 
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpd250b2d3Z3l1ZW9venRyeHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1OTAyNzEsImV4cCI6MjA5NjE2NjI3MX0.24ZUPngthYkehlmpuBVIsIhlStSck_04vXN5OpPyHV0"; 
+  
+  let databaseClient = null;
+  let sessionLocalHistory = []; // Keeps track of maps created in this tab session locally
+
+  try {
+    if (typeof window.supabase !== 'undefined') {
+      databaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+  } catch (err) {
+    console.error("Cloud linkage down:", err);
+  }
+
+  // ==========================================
+  // ⚙️ ENGINE GLOBAL CONFIGS
+  // ==========================================
+  let currentScreen = "screen-menu";
+  let gameMode = "CAMPAIGN"; 
+  let level = 1;
+  let gridSize = 7;
+  let useFog = false;
+  let x = 0, y = 0;
+  let keysHeld = 0;
+  let msg = "";
+  let boardState = {};       
+  let blocks = [];           
+  let togglePlatesOpen = false;
+  let activeTool = ".";
+  let isDrawingMouseActive = false;
+  let designerMatrixData = [];
+  let portal1 = { x: -1, y: -1 }, portal2 = { x: -1, y: -1 };
+  let currentActiveToken = "";
+
+  const levelMaps = {
+    1: { intro: "Toggles and gates", token: "4|-1,-1|-1,-1|false|P.TW/..TG/.TT./...." },
+    2: { intro: "Galaxies ahead", token: "4|1,0|3,0|false|SG.W/SMMM/SGGG/🎯.B." },
+    3: { intro: "Think before you switch", token: "5|2,3|3,0|false|HHHHW/M..TG/..MT./M.TTP/..T.P" },
+    4: { intro: "The Shattered Frost", token: "7|-1,-1|-1,-1|false|🎯M...GW/BM....G/X....../....XXX/....XBX/....SSS/.....T." },
+    5: { intro: "Maze", token: "7|-1,-1|-1,-1|true|.T...TW/.T.B.TG/.X..KTS/.TTTTTS/.T.X..S/...T.BS/.TTT..T" },
+    6: { intro: "Final, Goodluck!", token: "15|8,0|13,0|true|TTTTTMMMMMMMMGW/HH.ST...M...MPT/H🎯.SG.M...M.M../.M.STMMMMMM.M../.B.ST.B.....M../TTGTTB...T.MM../M.P.T....T..M../.B..T...TTT.M../.B..T....T..M../...MT.......M../TTGTTK......M../...🎯TTTT.B..M../.M..T.PTBWB.M../.M.....T.B..M../...BT..T....M.." }
+  };
+
+  document.body.onmousedown = () => { isDrawingMouseActive = true; };
+  document.body.onmouseup = () => { isDrawingMouseActive = false; };
+
+  function navTo(screenTarget) {
+    document.getElementById(currentScreen).style.display = "none";
+    currentScreen = "screen-" + screenTarget;
+    document.getElementById(currentScreen).style.display = "block";
+  }
+
+  function setTool(toolChar) {
+    let oldToolElement = document.getElementById(`tool-${activeTool}`);
+    if(oldToolElement) oldToolElement.classList.remove("active-tool-indicator");
+    activeTool = toolChar;
+    let newToolElement = document.getElementById(`tool-${activeTool}`);
+    if(newToolElement) newToolElement.classList.add("active-tool-indicator");
+  }
+
+  // ==========================================
+  // 🛠️ NEW WORKSHOP HUB MANAGEMENT FUNCTIONALITIES
+  // ==========================================
+  function openDesignerHub() {
+    navTo("designer-hub");
+    syncAndRefreshHubList();
+  }
+
+  function createNewBlankMap() {
+    document.getElementById("editing-map-title").innerText = "Editing: New Unnamed Map";
+    document.getElementById("pub-name").value = "";
+    document.getElementById("pub-desc").value = "";
+    document.getElementById("edit-size").value = 7;
+    document.getElementById("edit-fog").checked = false;
+    navTo("create");
+    initVisualEditorGrid(false); // Make completely clean map row data
+  }
+
+  async function syncAndRefreshHubList() {
+    let listArea = document.getElementById("hub-map-list");
+    listArea.innerHTML = `<p style="color:#2ecc71; font-size:13px;">Syncing cloud registry records...</p>`;
+    
+    let compiledHTML = "";
+
+    // Load active session temporary memory slots first
+    if (sessionLocalHistory.length > 0) {
+      compiledHTML += `<div style="text-align:left; color:#e67e22; font-weight:bold; font-size:12px; margin-bottom:5px;">[SESSION BACKUPS]</div>`;
+      sessionLocalHistory.forEach((m, idx) => {
+        compiledHTML += `
+          <div class="browser-card" style="border-color: #e67e22;">
+            <div class="card-info">
+              <h3 style="color:#e67e22;">${m.name}</h3>
+              <p>Session Cache Auto-save</p>
+            </div>
+            <button class="btn-play-card" style="background:#e67e22;" onclick="loadTargetTokenIntoCanvas('${m.token}', '${m.name}', '${m.creator}', '${m.description}')">MODIFY</button>
+          </div>`;
+      });
+    }
+
+    // Now attempt server pulling from Supabase
+    if (databaseClient) {
+      try {
+        let { data: items } = await databaseClient.from('community_levels').select('*').order('id', { ascending: false });
+        if(items && items.length > 0) {
+          compiledHTML += `<div style="text-align:left; color:#2ecc71; font-weight:bold; font-size:12px; margin: 10px 0 5px 0;">[LIVE CLOUD REGISTRY]</div>`;
+          items.forEach((item) => {
+            // Escaping single quotes safely from description data structures
+            let escapedDesc = (item.description || "").replace(/'/g, "\\'");
+            let escapedName = item.name.replace(/'/g, "\\'");
+            compiledHTML += `
+              <div class="browser-card">
+                <div class="card-info">
+                  <h3>${item.name}</h3>
+                  <p>By: ${item.creator} | ${item.difficulty}</p>
+                </div>
+                <button class="btn-play-card" onclick="loadTargetTokenIntoCanvas('${item.token}', '${escapedName}', '${item.creator}', '${escapedDesc}')">EDIT/CLONE</button>
+              </div>`;
+          });
+        }
+      } catch(e) {
+        console.warn("Could not sync cloud list items.");
+      }
+    }
+
+    if(compiledHTML === "") {
+      listArea.innerHTML = `<p style="color:#888; font-size:13px; font-style:italic;">No map templates found. Click create above to build one!</p>`;
+    } else {
+      listArea.innerHTML = compiledHTML;
+    }
+  }
+
+  function loadTargetTokenIntoCanvas(token, name, creator, description) {
+    document.getElementById("editing-map-title").innerText = `Modifying: ${name}`;
+    document.getElementById("pub-name").value = name;
+    document.getElementById("pub-creator").value = creator;
+    document.getElementById("pub-desc").value = description;
+
+    // Parse out token data structural segments to draw editor blocks accurately
+    let parts = token.split("|");
+    let size = parseInt(parts[0]);
+    let fogChecked = (parts[3] === "true");
+
+    document.getElementById("edit-size").value = size;
+    document.getElementById("edit-fog").checked = fogChecked;
+
+    navTo("create");
+    
+    // Draw canvas interface prefilled from structural string rows instead of a blank floor loop
+    initVisualEditorGrid(true, parts[4]); 
+  }
+
+  // ==========================================
+  // 🕹️ REBUILT VISUAL DESIGNER CANVAS MATRIX
+  // ==========================================
+  function initVisualEditorGrid(useBlueprintData, blueprintStringRows = "") {
+    let size = parseInt(document.getElementById("edit-size").value) || 7;
+    let workspace = document.getElementById("canvas-workspace");
+    workspace.innerHTML = "";
+    designerMatrixData = [];
+
+    let stringRowsArray = [];
+    if (useBlueprintData && blueprintStringRows !== "") {
+      stringRowsArray = blueprintStringRows.split("/");
+    }
+
+    for (let r = 0; r < size; r++) {
+      let rowArray = [];
+      let rowDiv = document.createElement("div");
+      rowDiv.className = "designer-row";
+
+      let structuralRowChars = (stringRowsArray[r] && stringRowsArray[r].length === size) ? Array.from(stringRowsArray[r]) : null;
+
+      for (let c = 0; c < size; c++) {
+        // Fallback default: top right element is goal symbol, rest floor spaces
+        let currentTile = (r === 0 && c === size - 1) ? "W" : ".";
+        
+        if (structuralRowChars) {
+          currentTile = structuralRowChars[c];
+        }
+        
+        rowArray.push(currentTile);
+
+        let cell = document.createElement("div");
+        cell.className = "designer-cell";
+        cell.id = `cell-${r}-${c}`;
+        cell.innerHTML = getDisplaySymbol(currentTile);
+
+        const paintTile = () => {
+          designerMatrixData[r][c] = activeTool;
+          cell.innerHTML = getDisplaySymbol(activeTool);
+        };
+
+        cell.onmousedown = (e) => { e.preventDefault(); paintTile(); };
+        cell.onmouseenter = () => { if (isDrawingMouseActive) paintTile(); };
+
+        rowDiv.appendChild(cell);
+      }
+      designerMatrixData.push(rowArray);
+      workspace.appendChild(rowDiv);
+    }
+  }
+
+  function getDisplaySymbol(token) {
+    if (token === "T") return "🌲";
+    if (token === "M") return "💥";
+    if (token === "H") return "🏠";
+    if (token === "B") return "📦";
+    if (token === "S") return "🧊";
+    if (token === "X") return "🍂";
+    if (token === "K") return "🔑";
+    if (token === "P") return "🔴";
+    if (token === "🎯") return "🔵";
+    if (token === "G") return "🔒";
+    if (token === "#") return "🕳️";
+    if (token === "W") return "💰"; 
+    return "⬛";
+  }
+
+  function generateLevelCode() {
+    let size = document.getElementById("edit-size").value;
+    let fogVal = document.getElementById("edit-fog").checked;
+    let cleanLayout = designerMatrixData.map(row => row.join("")).join("/");
+    document.getElementById("output-code").value = `${size}|-1,-1|-1,-1|${fogVal}|${cleanLayout}`;
+  }
+
+  async function publishLevelToCloud() {
+    generateLevelCode();
+    
+    let token = document.getElementById("output-code").value;
+    let name = document.getElementById("pub-name").value.trim();
+    let creator = document.getElementById("pub-creator").value.trim();
+    let description = document.getElementById("pub-desc").value.trim();
+    let difficulty = document.getElementById("pub-diff").value;
+
+    if(!name || !creator) { alert("Please supply a map title and creator name!"); return; }
+
+    // Backup to temporary tab session array so it populates locally instantly
+    let matchIndex = sessionLocalHistory.findIndex(m => m.name === name);
+    if(matchIndex >= 0) { sessionLocalHistory[matchIndex].token = token; } 
+    else { sessionLocalHistory.push({ name, creator, description, token }); }
+
+    if (!databaseClient) { 
+      alert("Saved locally! (Cloud connections are disabled in this environment).");
+      openDesignerHub();
+      return; 
+    }
+
+    try {
+      let { error } = await databaseClient
+        .from('community_levels')
+        .insert([{ name, creator, description, difficulty, token }]);
+
+      if (error) { 
+        alert("Saved locally. Cloud upload failed: " + error.message); 
+      } else {
+        alert("Published successfully! Map updated inside global databases.");
+      }
+      openDesignerHub();
+    } catch(e) {
+      alert("Saved locally. Connection error: " + e.message);
+      openDesignerHub();
+    }
+  }
+
+  // ==========================================
+  // 🕹️ GAMEPLAY ENGINE LOGIC
+  // ==========================================
+  async function fetchCloudLevels() {
+    let wrapper = document.getElementById("community-level-wrapper");
+    if (!databaseClient) {
+      wrapper.innerHTML = `<p style="color:#ff3333; padding:10px;">❌ Server offline or network blocked.</p>`;
+      return;
+    }
+    wrapper.innerHTML = `<p style="color:#aaa; padding:20px;">Downloading server indexes...</p>`;
+    try {
+      let { data: levels, error } = await databaseClient.from('community_levels').select('*').order('id', { ascending: false });
+      if (error) { wrapper.innerHTML = `<p style="color:#ff3333;">Fetch Failed</p>`; return; }
+      if(!levels || levels.length === 0) { wrapper.innerHTML = `<p style="color:#aaa;">Database is empty!</p>`; return; }
+      wrapper.innerHTML = "";
+      levels.forEach((item) => {
+        let card = document.createElement("div");
+        card.className = "browser-card";
+        card.innerHTML = `
+          <div class="card-info">
+            <h3>${item.name}</h3>
+            <p>${item.description || 'No notes.'}</p>
+            <div class="card-meta">By: ${item.creator} | ${item.difficulty}</div>
+          </div>
+          <button class="btn-play-card" onclick="playCloudLevel('${item.token}')">PLAY</button>`;
+        wrapper.appendChild(card);
+      });
+    } catch (e) { wrapper.innerHTML = `<p style="color:#ff3333;">System Error</p>`; }
+  }
+
+  function playCloudLevel(tokenString) {
+    gameMode = "CUSTOM";
+    currentActiveToken = tokenString;
+    parseLevelBlueprint(tokenString);
+    msg = "Loaded custom map layout!";
+    navTo("game");
+    upd();
+  }
+
+  function startCampaign() {
+    gameMode = "CAMPAIGN";
+    level = 1;
+    msg = levelMaps[level].intro;
+    parseLevelBlueprint(levelMaps[level].token);
+    upd();
+  }
+
+  function parseLevelBlueprint(token) {
+    x = 0; y = 0; keysHeld = 0; togglePlatesOpen = false; blocks = []; boardState = {};
+    let parts = token.split("|");
+    gridSize = parseInt(parts[0]);
+    portal1 = { x: parseInt(parts[1].split(",")[0]), y: parseInt(parts[1].split(",")[1]) };
+    portal2 = { x: parseInt(parts[2].split(",")[0]), y: parseInt(parts[2].split(",")[1]) };
+    useFog = (parts[3] === "true");
+    
+    let visualRows = parts[4].split("/");
+    for (let r = 0; r < gridSize; r++) {
+      let rowY = (gridSize - 1) - r; 
+      let lineChars = Array.from(visualRows[r] || "");
+      for (let colX = 0; colX < gridSize; colX++) {
+        let char = lineChars[colX] || ".";
+        if (char === "B") {
+          blocks.push({ x: colX, y: rowY });
+          boardState[`${colX},${rowY}`] = "."; 
+        } else {
+          boardState[`${colX},${rowY}`] = char;
+        }
+      }
+    }
+  }
+
+  function checkHoldPlatesActive() {
+    for (let coord in boardState) {
+      if (boardState[coord] === "🎯") {
+        let [px, py] = coord.split(",").map(Number);
+        if ((x === px && y === py) || blocks.some(b => b.x === px && b.y === py)) return true;
+      }
+    }
+    return false;
+  }
+
+  function areGatesUnlocked() { return togglePlatesOpen || checkHoldPlatesActive(); }
+
+  function handleMove(dx, dy) {
+    let nextX = x + dx; let nextY = y + dy;
+    if (nextX < 0 || nextX >= gridSize || nextY < 0 || nextY >= gridSize) return;
+
+    let targetTile = boardState[`${nextX},${nextY}`] || ".";
+    let boxChain = []; let checkX = nextX; let checkY = nextY;
+    
+    while (blocks.some(b => b.x === checkX && b.y === checkY)) {
+      let idx = blocks.findIndex(b => b.x === checkX && b.y === checkY);
+      boxChain.push(idx); checkX += dx; checkY += dy;
+    }
+
+    if (boxChain.length > 0) {
+      let lastBlockNextX = nextX + (boxChain.length * dx);
+      let lastBlockNextY = nextY + (boxChain.length * dy);
+      if (lastBlockNextX < 0 || lastBlockNextX >= gridSize || lastBlockNextY < 0 || lastBlockNextY >= gridSize) return;
+      
+      let lastBlockTargetTile = boardState[`${lastBlockNextX},${lastBlockNextY}`] || ".";
+      if (lastBlockTargetTile === "T" || lastBlockTargetTile === "H" || (lastBlockTargetTile === "G" && !areGatesUnlocked())) return; 
+
+      for (let i = boxChain.length - 1; i >= 0; i--) {
+        let bIdx = boxChain[i]; blocks[bIdx].x += dx; blocks[bIdx].y += dy;
+      }
+
+      if (lastBlockTargetTile === "P") { togglePlatesOpen = !togglePlatesOpen; msg = "Box hit toggle! 🔴"; }
+      if (lastBlockTargetTile === "M") {
+        msg = "Box blew up a landmine! 💥"; boardState[`${lastBlockNextX},${lastBlockNextY}`] = "."; 
+        let blownIdx = boxChain[boxChain.length - 1]; blocks.splice(blownIdx, 1); 
+      } else if (lastBlockTargetTile === "#") {
+        msg = "Box plugged pit! 🕳️"; boardState[`${lastBlockNextX},${lastBlockNextY}`] = "."; 
+        let fallenIdx = boxChain[boxChain.length - 1]; blocks.splice(fallenIdx, 1);
+      }
+    } else {
+      if (targetTile === "T" || targetTile === "H") return;
+      if (targetTile === "G" && !areGatesUnlocked()) {
+        if (keysHeld > 0) { keysHeld--; boardState[`${nextX},${nextY}`] = "."; msg = "Gate unlocked! 🔑🔓"; } 
+        else { return; }
+      }
+      if (targetTile === "#") { msg = "Fell into pit! 🕳️"; resetLevelState(); return; }
+    }
+
+    let currentTile = boardState[`${x},${y}`];
+    x = nextX; y = nextY;
+
+    if (boardState[`${x},${y}`] === "K") { keysHeld++; boardState[`${x},${y}`] = "."; msg = "Key item added! 🔑"; }
+    if (boardState[`${x},${y}`] === "P") { togglePlatesOpen = !togglePlatesOpen; msg = "Toggle Switch shifted! 🔴"; }
+    if (currentTile === "X") { boardState[`${x - dx},${y - dy}`] = "#"; }
+
+    if (x === portal1.x && y === portal1.y) { x = portal2.x; y = portal2.y; msg = "Teleported! 🌌"; } 
+    else if (x === portal2.x && y === portal2.y) { x = portal1.x; y = portal1.y; msg = "Teleported! 🌌"; }
+
+    if (boardState[`${x},${y}`] === "S") { setTimeout(() => { handleMove(dx, dy); }, 100); upd(); return; }
+    if (boardState[`${x},${y}`] === "M") { msg = "Blown up by a mine! 💥"; resetLevelState(); return; }
+
+    if (boardState[`${x},${y}`] === "W") {
+      if (gameMode === "CUSTOM") { alert("Custom map cleared! 🏆"); navTo("menu"); return; } 
+      else {
+        level++; let nextMap = levelMaps[level];
+        if(!nextMap) { alert("YOU CLEARED THE ENTIRE GAME! 🏆🔮"); navTo("menu"); return; }
+        msg = nextMap.intro; parseLevelBlueprint(nextMap.token);
+      }
+    }
+    upd();
+  }
+
+  function resetLevelState() {
+    x = 0; y = 0;
+    let activeMapToken = gameMode === "CUSTOM" ? currentActiveToken : levelMaps[level].token;
+    parseLevelBlueprint(activeMapToken);
+    upd();
+  }
+
+  function upd() {
+    if (currentScreen !== "screen-game") return;
+    document.getElementById("level-heading").innerText = (gameMode === "CUSTOM") ? "Custom Cloud Test" : `Level ${level}`;
+    document.getElementById("pos").innerHTML = `Position: ${x}x, ${y}y`;
+    if (msg !== "") { document.getElementById("story").innerText = msg; msg = ""; }
+
+    let gatesOpen = areGatesUnlocked(); let mapVisual = ""; 
+    for (let rowY = gridSize - 1; rowY >= 0; rowY--) {
+      for (let colX = 0; colX < gridSize; colX++) {
+        let dist = Math.max(Math.abs(colX - x), Math.abs(rowY - y));
+        if (useFog && dist > 2) { mapVisual += "🌫️"; } 
+        else {
+          if (colX === x && rowY === y) { mapVisual += "🧙‍♂️"; } 
+          else if (blocks.some(b => b.x === colX && b.y === rowY)) { mapVisual += "📦"; }
+          else if (colX === portal1.x && rowY === portal1.y || colX === portal2.x && rowY === portal2.y) { mapVisual += "🌌"; }
+          else {
+            let tile = boardState[`${colX},${rowY}`] || ".";
+            if (tile === "G") mapVisual += gatesOpen ? "🔓" : "🔒";
+            else mapVisual += getDisplaySymbol(tile);
+          }
+        }
+      }
+      mapVisual += "<br>"; 
+    }
+    document.getElementById("grid").innerHTML = mapVisual;
+  }
+</script>
+</body>
+</html>
