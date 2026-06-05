@@ -1,4 +1,5 @@
-    <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -354,7 +355,7 @@
   let designerMatrixData = [];
   let portal1 = { x: -1, y: -1 }, portal2 = { x: -1, y: -1 };
   let currentActiveToken = "";
-  let currentLevelId = null; // Track database ID for custom level clears
+  let currentLevelId = null; 
   
   // Account state variables
   let activeUserToken = null; 
@@ -426,7 +427,7 @@
           return;
         }
         
-        let { error } = await databaseClient.from('wizard_users').insert([{ username: username, password: password, points: 0, verifier: false }]);
+        let { error } = await databaseClient.from('wizard_users').insert([{ username: username, password: password, points: 0, verifier: false, is_banned: false }]);
         if (error) throw error;
         alert("Account registered successfully!");
       }
@@ -434,6 +435,11 @@
       let { data: userRecord, error: fetchErr } = await databaseClient.from('wizard_users').select('*').eq('username', username).eq('password', password).maybeSingle();
       if (fetchErr || !userRecord) {
         alert("Invalid credentials. Check spelling or try a clean name register.");
+        return;
+      }
+
+      if (userRecord.is_banned) {
+        alert("🚨 Your wizard license has been suspended by a community verifier. Access denied.");
         return;
       }
 
@@ -476,71 +482,113 @@
   }
 
   // ==========================================
-  // 🏆 LEADERBOARD VIEW ENGINE
+  // 🏆 LEADERBOARD VIEW ENGINE (WITH MODERATION)
   // ==========================================
-  // ==========================================
-// 🏆 LEADERBOARD VIEW ENGINE (WITH MODERATION)
-// ==========================================
-async function openLeaderboardView() {
-  navTo("leaderboards");
-  let container = document.getElementById("leaderboard-rows");
-  container.innerHTML = `<tr><td colspan="3" style="color:#2ecc71; text-align:center;">Fetching global scores...</td></tr>`;
+  async function openLeaderboardView() {
+    navTo("leaderboards");
+    let container = document.getElementById("leaderboard-rows");
+    container.innerHTML = `<tr><td colspan="3" style="color:#2ecc71; text-align:center;">Fetching global scores...</td></tr>`;
 
-  if (!databaseClient) {
-    container.innerHTML = `<tr><td colspan="3" style="color:#ff3333; text-align:center;">Leaderboard server unavailable offline</td></tr>`;
-    return;
-  }
-
-  try {
-    // Modified to fetch 'is_banned' status for mod filtering/display
-    let { data: rankings, error } = await databaseClient
-      .from('wizard_users')
-      .select('username, points, is_banned')
-      .order('points', { ascending: false })
-      .limit(25);
-      
-    if (error) throw error;
-
-    if (!rankings || rankings.length === 0) {
-      container.innerHTML = `<tr><td colspan="3" style="color:#aaa; text-align:center;">No high scores registered yet!</td></tr>`;
+    if (!databaseClient) {
+      container.innerHTML = `<tr><td colspan="3" style="color:#ff3333; text-align:center;">Leaderboard server unavailable offline</td></tr>`;
       return;
     }
 
-    container.innerHTML = "";
-    rankings.forEach((user, idx) => {
-      // Skip showing banned users to regular players, but keep them visible to verifiers so they can unban them
-      if (user.is_banned && !isUserVerifier) return;
+    try {
+      let { data: rankings, error } = await databaseClient
+        .from('wizard_users')
+        .select('username, points, is_banned')
+        .order('points', { ascending: false })
+        .limit(25);
+        
+      if (error) throw error;
 
-      let medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `Row #${idx + 1}`;
-      let bannedStatusTag = user.is_banned ? ` <span style="color:#ff3333; font-size:10px;">[BANNED]</span>` : "";
-      
-      // Generate Moderation tools inline if the current user is a Verifier admin
-      let modControls = "";
-      if (isUserVerifier) {
-        let banBtnText = user.is_banned ? "🔄 Unban" : "❌ Ban";
-        modControls = `
-          <div style="margin-top: 5px;">
-            <button style="font-size:11px; padding:2px 6px; background:#c0392b;" onclick="modBanAccount('${user.username}', ${user.is_banned})">${banBtnText}</button>
-            <button style="font-size:11px; padding:2px 6px; background:#d35400;" onclick="modEditPoints('${user.username}', ${user.points || 0})">✏️ Points</button>
-          </div>
-        `;
+      if (!rankings || rankings.length === 0) {
+        container.innerHTML = `<tr><td colspan="3" style="color:#aaa; text-align:center;">No high scores registered yet!</td></tr>`;
+        return;
       }
 
-      container.innerHTML += `
-        <tr>
-          <td>${medal}</td>
-          <td style="font-weight:bold; color:#bdc3c7;">
-            ${user.username}${bannedStatusTag}
-            ${modControls}
-          </td>
-          <td style="text-align:right; color:#2ecc71; font-weight:bold;">${user.points || 0} pts</td>
-        </tr>`;
-    });
-  } catch (e) {
-    container.innerHTML = `<tr><td colspan="3" style="color:#ff3333; text-align:center;">Failed loading scores.</td></tr>`;
-  }
-}
+      container.innerHTML = "";
+      rankings.forEach((user, idx) => {
+        if (user.is_banned && !isUserVerifier) return;
 
+        let medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `Row #${idx + 1}`;
+        let bannedStatusTag = user.is_banned ? ` <span style="color:#ff3333; font-size:10px;">[BANNED]</span>` : "";
+        
+        let modControls = "";
+        if (isUserVerifier) {
+          let banBtnText = user.is_banned ? "🔄 Unban" : "❌ Ban";
+          modControls = `
+            <div style="margin-top: 5px;">
+              <button style="font-size:11px; padding:2px 6px; background:#c0392b; border:1px solid #7f1d1d; border-radius:3px;" onclick="modBanAccount('${user.username}', ${user.is_banned})">${banBtnText}</button>
+              <button style="font-size:11px; padding:2px 6px; background:#d35400; border:1px solid #7c2d12; border-radius:3px;" onclick="modEditPoints('${user.username}', ${user.points || 0})">✏️ Points</button>
+            </div>
+          `;
+        }
+
+        container.innerHTML += `
+          <tr>
+            <td>${medal}</td>
+            <td style="font-weight:bold; color:#bdc3c7;">
+              ${user.username}${bannedStatusTag}
+              ${modControls}
+            </td>
+            <td style="text-align:right; color:#2ecc71; font-weight:bold;">${user.points || 0} pts</td>
+          </tr>`;
+      });
+    } catch (e) {
+      container.innerHTML = `<tr><td colspan="3" style="color:#ff3333; text-align:center;">Failed loading scores.</td></tr>`;
+    }
+  }
+
+  // ==========================================
+  // 👑 VERIFIER ADMINISTRATIVE ACTIONS
+  // ==========================================
+  async function modBanAccount(targetUser, currentlyBanned) {
+    if (!isUserVerifier || !databaseClient) return;
+    
+    let actionText = currentlyBanned ? "UNBAN" : "BAN";
+    if (!confirm(`Are you sure you want to ${actionText} the wizard account: ${targetUser}?`)) return;
+
+    try {
+      let { error } = await databaseClient
+        .from('wizard_users')
+        .update({ is_banned: !currentlyBanned })
+        .eq('username', targetUser);
+
+      if (error) throw error;
+      alert(`Account ${targetUser} status updated successfully.`);
+      openLeaderboardView(); 
+    } catch (e) {
+      alert("Moderation update failed: " + e.message);
+    }
+  }
+
+  async function modEditPoints(targetUser, currentPoints) {
+    if (!isUserVerifier || !databaseClient) return;
+
+    let newPointsStr = prompt(`Set new Global Points total for wizard [${targetUser}]:`, currentPoints);
+    if (newPointsStr === null) return; 
+    
+    let newPoints = parseInt(newPointsStr);
+    if (isNaN(newPoints)) {
+      alert("Please enter a valid round number.");
+      return;
+    }
+
+    try {
+      let { error } = await databaseClient
+        .from('wizard_users')
+        .update({ points: newPoints })
+        .eq('username', targetUser);
+
+      if (error) throw error;
+      alert(`Updated ${targetUser}'s standing balance.`);
+      openLeaderboardView(); 
+    } catch (e) {
+      alert("Score overwrite failure: " + e.message);
+    }
+  }
 
   // ==========================================
   // 🛠️ WORKSHOP HUB MANAGEMENT FUNCTIONALITIES
@@ -630,7 +678,7 @@ async function openLeaderboardView() {
   }
 
   // ==========================================
-  // 🕹️ VISUAL DESIGNER CANVAS MATRIX (RESTORED TO OLD COORDINATES MATH)
+  // 🕹️ VISUAL DESIGNER CANVAS MATRIX
   // ==========================================
   function initVisualEditorGrid(useBlueprintData, blueprintStringRows = "") {
     let size = parseInt(document.getElementById("edit-size").value) || 7;
@@ -748,7 +796,7 @@ async function openLeaderboardView() {
   }
 
   // ==========================================
-  // 🕹️ GAMEPLAY ENGINE LOGIC (ORIGINAL COORDINATE MATH PRESERVED)
+  // 🕹️ GAMEPLAY ENGINE LOGIC
   // ==========================================
   async function fetchCloudLevels() {
     let wrapper = document.getElementById("community-level-wrapper");
