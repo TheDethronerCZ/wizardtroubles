@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Wizard Troubles vAlpha1.0</title>
+  <title>Wizard Troubles Online Alpha1.0</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -46,7 +46,7 @@
     .btn-green  { background-color: #2ecc71; border-color: #27ae60; font-size: 20px; padding: 12px 24px;}
     .btn-blue   { background-color: #2980b9; border-color: #3498db; }
     
-    textarea, input[type="text"], input[type="number"], select {
+    textarea, input[type="text"], input[type="password"], input[type="number"], select {
       background-color: #2c3e50;
       color: #fff;
       font-family: monospace;
@@ -57,7 +57,7 @@
       border-radius: 4px;
       box-sizing: border-box;
     }
-    input[type="text"] { width: 80%; max-width: 300px; margin: 4px 0;}
+    input[type="text"], input[type="password"] { width: 80%; max-width: 300px; margin: 4px 0;}
     input[type="number"] { width: 60px; }
     .code-box { width: 85%; max-width: 500px; height: 60px; margin-top: 10px; }
     
@@ -99,6 +99,35 @@
       background: #222; padding: 15px; border-radius: 8px;
       max-width: 550px; margin: 15px auto; border: 2px dashed #e67e22;
     }
+
+    /* Account Specific UI Components */
+    .account-badge {
+      font-size: 12px; color: #9b59b6; margin-bottom: 10px; font-weight: bold;
+    }
+    .verified-tag {
+      background-color: #2ecc71; color: #1a1a1a; padding: 2px 6px; 
+      border-radius: 3px; font-size: 10px; margin-left: 8px; display: inline-block;
+    }
+    .filter-bar {
+      margin: 10px 0; background-color: #222; padding: 8px; border-radius: 5px;
+    }
+    .leaderboard-table {
+      width: 100%; border-collapse: collapse; margin-top: 10px; text-align: left;
+    }
+    .leaderboard-table th, .leaderboard-table td {
+      padding: 8px; border-bottom: 1px solid #444;
+    }
+    .leaderboard-table th { color: #9b59b6; }
+
+    .verifier-controls {
+      margin-top: 8px;
+      background: #1a1a1a;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px dashed #2ecc71;
+      font-size: 12px;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -120,14 +149,38 @@
     };
   </script>
 
-  <!-- Screens -->
   <div id="screen-menu" class="menu-container">
     <h1 class="menu-title">WIZARD TROUBLES</h1>
     <p>Silly Puzzle game about wizards :3</p>
-    <br><br>
+    <div id="menu-auth-status" class="account-badge">Not Logged In (Community Locked)</div>
+    <br>
     <button class="btn-purple" onclick="navTo('game'); startCampaign();">Play Campaign Levels 🧙‍♂️</button><br>
-    <button class="btn-orange" onclick="openDesignerHub()">Level Designer Hub 🛠️</button><br>
-    <button class="btn-green" onclick="navTo('play-custom'); fetchCloudLevels();">Community Dashboard 🚀</button>
+    <button id="btn-gate-account" class="btn-blue" onclick="navTo('auth')">🔐 Register / Login</button><br>
+    <button class="btn-green" onclick="handleCommunityAccessAttempt()">Community Hub 🚀</button>
+  </div>
+
+  <div id="screen-auth" class="menu-container" style="display: none;">
+    <h1 style="color: #2980b9;">Account Gateway</h1>
+    <p>No email required — enter a unique username and password</p>
+    <div style="margin: 20px 0;">
+      <input type="text" id="auth-user" placeholder="Username"><br>
+      <input type="password" id="auth-pass" placeholder="Password"><br>
+    </div>
+    <button class="btn-green" onclick="performAccountAction('LOGIN')">Sign In</button>
+    <button class="btn-orange" onclick="performAccountAction('REGISTER')">Create Account</button>
+    <br><br>
+    <button onclick="navTo('menu')">Cancel</button>
+  </div>
+
+  <div id="screen-community-hub" class="menu-container" style="display: none;">
+    <h1 style="color: #2ecc71;">Community Hub</h1>
+    <p id="hub-welcome-back">Welcome back, Wizard!</p>
+    <br>
+    <button class="btn-orange" style="width:80%; max-width:340px;" onclick="openDesignerHub()">Level Designer Hub 🛠️</button><br>
+    <button class="btn-green" style="width:80%; max-width:340px;" onclick="navTo('play-custom'); fetchCloudLevels();">Browse Custom Levels 🌐</button><br>
+    <button class="btn-purple" style="width:80%; max-width:340px;" onclick="openLeaderboardView()">Global Leaderboards 🏆</button>
+    <br><br>
+    <button onclick="navTo('menu')">Back to Main Menu</button>
   </div>
 
   <div id="screen-designer-hub" class="menu-container" style="display: none;">
@@ -150,7 +203,7 @@
     </div>
 
     <br>
-    <button onclick="navTo('menu')">Back to Main Menu</button>
+    <button onclick="navTo('community-hub')">Back to Community Hub</button>
   </div>
 
   <div id="screen-create" class="menu-container" style="display: none;">
@@ -190,14 +243,14 @@
     <div style="background: #222; padding: 15px; border-radius: 6px; max-width: 500px; margin: 10px auto; border: 1px dashed #e67e22;">
       <h3>Publish Globally / Save Changes</h3>
       <input type="text" id="pub-name" placeholder="Level Name"><br>
-      <input type="text" id="pub-creator" placeholder="Your Creator Name"><br>
+      <input type="text" id="pub-creator" placeholder="Your Creator Name" readonly><br>
       <input type="text" id="pub-desc" placeholder="Brief puzzle clues/description..."><br>
       Select Difficulty: 
       <select id="pub-diff" style="margin-top:5px;">
         <option value="🟢 Easy">🟢 Easy</option>
         <option value="🟡 Medium">🟡 Medium</option>
         <option value="🔴 Hard">🔴 Hard</option>
-        <option value="💀 Expert">💀 Expert</option>
+        <option value="💀 Extreme">💀 Extreme</option>
       </select><br><br>
       <button class="btn-green" style="font-size:15px;" onclick="publishLevelToCloud()">SHARE WITH THE WORLD 🌐</button>
     </div>
@@ -208,6 +261,14 @@
   <div id="screen-play-custom" class="menu-container" style="display: none;">
     <h1 style="color: #2ecc71;">Custom Levels</h1>
     <p>Play levels made by the community</p>
+
+    <div class="filter-bar">
+      Filter By: 
+      <select id="filter-verified" onchange="fetchCloudLevels()">
+        <option value="ALL">All Levels</option>
+        <option value="VERIFIED">✅ Verified Only</option>
+      </select>
+    </div>
     
     <button onclick="fetchCloudLevels()" style="font-size:13px; padding:5px 10px; background:#444;">🔄 Refresh List</button>
     
@@ -215,7 +276,28 @@
       <p style="color:#aaa; padding:20px;">Fetching from cloud database...</p>
     </div>
 
-    <button onclick="navTo('menu')">Back to Main Menu</button>
+    <button onclick="navTo('community-hub')">Back to Hub</button>
+  </div>
+
+  <div id="screen-leaderboards" class="menu-container" style="display: none;">
+    <h1 style="color: #9b59b6;">Global Leaderboards</h1>
+    <p>Points unlocked by clearing verified community puzzles</p>
+    
+    <div class="browser-container">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Wizard</th>
+            <th style="text-align: right;">Points</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-rows">
+          <tr><td colspan="3" style="color:#aaa; text-align:center;">Loading scores...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <button onclick="navTo('community-hub')">Back to Hub</button>
   </div>
 
   <div id="screen-game" style="display: none;">
@@ -232,7 +314,7 @@
       <button onclick="handleMove(0, -1)">⬇️ </button>
     </div>
     <br>
-    <button onclick="navTo('menu')">Exit to Menu</button>
+    <button id="btn-game-exit" onclick="navTo('menu')">Exit to Menu</button>
   </div>
   
 <script>
@@ -272,6 +354,13 @@
   let designerMatrixData = [];
   let portal1 = { x: -1, y: -1 }, portal2 = { x: -1, y: -1 };
   let currentActiveToken = "";
+  let currentLevelId = null; // Track database ID for custom level clears
+  
+  // Account state variables
+  let activeUserToken = null; 
+  let isUserVerifier = false; 
+  let currentLevelDifficulty = "🟢 Easy";
+  let isCurrentLevelVerified = false;
 
   const levelMaps = {
     1: { intro: "Toggles and gates", token: "4|-1,-1|-1,-1|false|P.TW/..TG/.TT./...." },
@@ -298,6 +387,160 @@
     let newToolElement = document.getElementById(`tool-${activeTool}`);
     if(newToolElement) newToolElement.classList.add("active-tool-indicator");
   }
+
+  // ==========================================
+  // 🔐 ACCOUNT PORTAL LAYER
+  // ==========================================
+  function handleCommunityAccessAttempt() {
+    if (!activeUserToken) {
+      alert("This domain is restricted. Please register or sign into your profile first!");
+      navTo("auth");
+    } else {
+      let roleText = isUserVerifier ? " (Verifier Role)" : "";
+      document.getElementById("hub-welcome-back").innerText = `Welcome back, Wizard ${activeUserToken}${roleText}!`;
+      navTo("community-hub");
+    }
+  }
+
+  async function performAccountAction(mode) {
+    let username = document.getElementById("auth-user").value.trim();
+    let password = document.getElementById("auth-pass").value.trim();
+
+    if (!username || !password) {
+      alert("Please enter both a username and password.");
+      return;
+    }
+    if (!databaseClient) {
+      alert("Database client offline. Simulating profile login.");
+      activeUserToken = username;
+      isUserVerifier = false;
+      postLoginSetup();
+      return;
+    }
+
+    try {
+      if (mode === "REGISTER") {
+        let { data: existing } = await databaseClient.from('wizard_users').select('username').eq('username', username).maybeSingle();
+        if (existing) {
+          alert("Username already taken!");
+          return;
+        }
+        
+        let { error } = await databaseClient.from('wizard_users').insert([{ username: username, password: password, points: 0, verifier: false }]);
+        if (error) throw error;
+        alert("Account registered successfully!");
+      }
+
+      let { data: userRecord, error: fetchErr } = await databaseClient.from('wizard_users').select('*').eq('username', username).eq('password', password).maybeSingle();
+      if (fetchErr || !userRecord) {
+        alert("Invalid credentials. Check spelling or try a clean name register.");
+        return;
+      }
+
+      activeUserToken = userRecord.username;
+      isUserVerifier = !!userRecord.verifier; 
+      postLoginSetup();
+
+    } catch (err) {
+      alert("Authentication error: " + err.message);
+    }
+  }
+
+  function postLoginSetup() {
+    let tag = isUserVerifier ? " [👑 Verifier]" : "";
+    document.getElementById("menu-auth-status").innerText = `Logged In as: ${activeUserToken}${tag}`;
+    document.getElementById("pub-creator").value = activeUserToken;
+    document.getElementById("btn-gate-account").innerText = "🔄 Change Account";
+    handleCommunityAccessAttempt();
+  }
+
+  // ==========================================
+  // 👑 LIVE CLOUD VERIFICATION TOGGLE
+  // ==========================================
+  async function toggleLevelVerification(levelId, checkboxElement) {
+    if (!databaseClient || !isUserVerifier) return;
+    
+    let targetStatus = checkboxElement.checked;
+    try {
+      let { error } = await databaseClient
+        .from('community_levels')
+        .update({ verified: targetStatus })
+        .eq('id', levelId);
+        
+      if (error) throw error;
+      alert(`Level verification status updated to: ${targetStatus ? "VERIFIED ✅" : "UNVERIFIED ❌"}`);
+    } catch(e) {
+      alert("Failed updating status: " + e.message);
+      checkboxElement.checked = !targetStatus; 
+    }
+  }
+
+  // ==========================================
+  // 🏆 LEADERBOARD VIEW ENGINE
+  // ==========================================
+  // ==========================================
+// 🏆 LEADERBOARD VIEW ENGINE (WITH MODERATION)
+// ==========================================
+async function openLeaderboardView() {
+  navTo("leaderboards");
+  let container = document.getElementById("leaderboard-rows");
+  container.innerHTML = `<tr><td colspan="3" style="color:#2ecc71; text-align:center;">Fetching global scores...</td></tr>`;
+
+  if (!databaseClient) {
+    container.innerHTML = `<tr><td colspan="3" style="color:#ff3333; text-align:center;">Leaderboard server unavailable offline</td></tr>`;
+    return;
+  }
+
+  try {
+    // Modified to fetch 'is_banned' status for mod filtering/display
+    let { data: rankings, error } = await databaseClient
+      .from('wizard_users')
+      .select('username, points, is_banned')
+      .order('points', { ascending: false })
+      .limit(25);
+      
+    if (error) throw error;
+
+    if (!rankings || rankings.length === 0) {
+      container.innerHTML = `<tr><td colspan="3" style="color:#aaa; text-align:center;">No high scores registered yet!</td></tr>`;
+      return;
+    }
+
+    container.innerHTML = "";
+    rankings.forEach((user, idx) => {
+      // Skip showing banned users to regular players, but keep them visible to verifiers so they can unban them
+      if (user.is_banned && !isUserVerifier) return;
+
+      let medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `Row #${idx + 1}`;
+      let bannedStatusTag = user.is_banned ? ` <span style="color:#ff3333; font-size:10px;">[BANNED]</span>` : "";
+      
+      // Generate Moderation tools inline if the current user is a Verifier admin
+      let modControls = "";
+      if (isUserVerifier) {
+        let banBtnText = user.is_banned ? "🔄 Unban" : "❌ Ban";
+        modControls = `
+          <div style="margin-top: 5px;">
+            <button style="font-size:11px; padding:2px 6px; background:#c0392b;" onclick="modBanAccount('${user.username}', ${user.is_banned})">${banBtnText}</button>
+            <button style="font-size:11px; padding:2px 6px; background:#d35400;" onclick="modEditPoints('${user.username}', ${user.points || 0})">✏️ Points</button>
+          </div>
+        `;
+      }
+
+      container.innerHTML += `
+        <tr>
+          <td>${medal}</td>
+          <td style="font-weight:bold; color:#bdc3c7;">
+            ${user.username}${bannedStatusTag}
+            ${modControls}
+          </td>
+          <td style="text-align:right; color:#2ecc71; font-weight:bold;">${user.points || 0} pts</td>
+        </tr>`;
+    });
+  } catch (e) {
+    container.innerHTML = `<tr><td colspan="3" style="color:#ff3333; text-align:center;">Failed loading scores.</td></tr>`;
+  }
+}
+
 
   // ==========================================
   // 🛠️ WORKSHOP HUB MANAGEMENT FUNCTIONALITIES
@@ -350,7 +593,7 @@
             compiledHTML += `
               <div class="browser-card">
                 <div class="card-info">
-                  <h3>${item.name}</h3>
+                  <h3>${item.name} ${item.verified ? '<span class="verified-tag">✅ Verified</span>' : ''}</h3>
                   <p>By: ${item.creator} | ${item.difficulty}</p>
                 </div>
                 <button class="btn-play-card" onclick="loadTargetTokenIntoCanvas('${item.token}', '${escapedName}', '${item.creator}', '${escapedDesc}')">EDIT/CLONE</button>
@@ -387,7 +630,7 @@
   }
 
   // ==========================================
-  // 🕹️ VISUAL DESIGNER CANVAS MATRIX
+  // 🕹️ VISUAL DESIGNER CANVAS MATRIX (RESTORED TO OLD COORDINATES MATH)
   // ==========================================
   function initVisualEditorGrid(useBlueprintData, blueprintStringRows = "") {
     let size = parseInt(document.getElementById("edit-size").value) || 7;
@@ -395,27 +638,32 @@
     workspace.innerHTML = "";
     designerMatrixData = [];
 
+    for(let i=0; i<size; i++) {
+      let rArr = [];
+      for(let j=0; j<size; j++) {
+        rArr.push((i === 0 && j === size - 1) ? "W" : ".");
+      }
+      designerMatrixData.push(rArr);
+    }
+
     let stringRowsArray = [];
     if (useBlueprintData && blueprintStringRows !== "") {
       stringRowsArray = blueprintStringRows.split("/");
     }
 
     for (let r = 0; r < size; r++) {
-      let rowArray = [];
       let rowDiv = document.createElement("div");
       rowDiv.className = "designer-row";
 
-      let structuralRowChars = (stringRowsArray[r] && stringRowsArray[r].length === size) ? Array.from(stringRowsArray[r]) : null;
+      let targetBlueprintRowIndex = r; 
+      let structuralRowChars = (stringRowsArray[targetBlueprintRowIndex] && stringRowsArray[targetBlueprintRowIndex].length === size) ? Array.from(stringRowsArray[targetBlueprintRowIndex]) : null;
 
       for (let c = 0; c < size; c++) {
-        // Default goal at top right corner, otherwise floor
-        let currentTile = (r === 0 && c === size - 1) ? "W" : ".";
-        
         if (structuralRowChars) {
-          currentTile = structuralRowChars[c];
+          designerMatrixData[r][c] = structuralRowChars[c];
         }
         
-        rowArray.push(currentTile);
+        let currentTile = designerMatrixData[r][c];
 
         let cell = document.createElement("div");
         cell.className = "designer-cell";
@@ -434,7 +682,6 @@
 
         rowDiv.appendChild(cell);
       }
-      designerMatrixData.push(rowArray);
       workspace.appendChild(rowDiv);
     }
   }
@@ -467,11 +714,11 @@
     
     let token = document.getElementById("output-code").value;
     let name = document.getElementById("pub-name").value.trim();
-    let creator = document.getElementById("pub-creator").value.trim();
+    let creator = document.getElementById("pub-creator").value.trim() || activeUserToken || "Anonymous";
     let description = document.getElementById("pub-desc").value.trim();
     let difficulty = document.getElementById("pub-diff").value;
 
-    if(!name || !creator) { alert("Please supply a map title and creator name!"); return; }
+    if(!name) { alert("Please supply a map title!"); return; }
 
     let matchIndex = sessionLocalHistory.findIndex(m => m.name === name);
     if(matchIndex >= 0) { sessionLocalHistory[matchIndex].token = token; } 
@@ -486,12 +733,12 @@
     try {
       let { error } = await databaseClient
         .from('community_levels')
-        .insert([{ name, creator, description, difficulty, token }]);
+        .insert([{ name, creator, description, difficulty, token, verified: false }]);
 
       if (error) { 
         alert("Saved locally. Cloud upload failed: " + error.message); 
       } else {
-        alert("Published successfully! Map updated inside global databases.");
+        alert("Published successfully! Map submitted for approval verification checks.");
       }
       openDesignerHub();
     } catch(e) {
@@ -501,38 +748,66 @@
   }
 
   // ==========================================
-  // 🕹️ GAMEPLAY ENGINE LOGIC
+  // 🕹️ GAMEPLAY ENGINE LOGIC (ORIGINAL COORDINATE MATH PRESERVED)
   // ==========================================
   async function fetchCloudLevels() {
     let wrapper = document.getElementById("community-level-wrapper");
+    let filterMode = document.getElementById("filter-verified").value;
+
     if (!databaseClient) {
       wrapper.innerHTML = `<p style="color:#ff3333; padding:10px;">❌ Server offline or network blocked.</p>`;
       return;
     }
     wrapper.innerHTML = `<p style="color:#aaa; padding:20px;">Downloading server indexes...</p>`;
     try {
-      let { data: levels, error } = await databaseClient.from('community_levels').select('*').order('id', { ascending: false });
+      let query = databaseClient.from('community_levels').select('*');
+      if (filterMode === "VERIFIED") {
+        query = query.eq('verified', true);
+      }
+      
+      let { data: levels, error } = await query.order('id', { ascending: false });
       if (error) { wrapper.innerHTML = `<p style="color:#ff3333;">Fetch Failed</p>`; return; }
-      if(!levels || levels.length === 0) { wrapper.innerHTML = `<p style="color:#aaa;">Database is empty!</p>`; return; }
+      if(!levels || levels.length === 0) { wrapper.innerHTML = `<p style="color:#aaa;">No levels match this criterion.</p>`; return; }
       wrapper.innerHTML = "";
+      
       levels.forEach((item) => {
         let card = document.createElement("div");
         card.className = "browser-card";
+
+        let verifierBlock = "";
+        if (isUserVerifier) {
+          let checkedAttribute = item.verified ? "checked" : "";
+          verifierBlock = `
+            <div class="verifier-controls">
+              <label>
+                <input type="checkbox" ${checkedAttribute} onchange="toggleLevelVerification(${item.id}, this)"> 
+                Verify Level
+              </label>
+            </div>`;
+        }
+
         card.innerHTML = `
           <div class="card-info">
-            <h3>${item.name}</h3>
+            <h3>${item.name} ${item.verified ? '<span class="verified-tag">✅ Verified</span>' : ''}</h3>
             <p>${item.description || 'No notes.'}</p>
             <div class="card-meta">By: ${item.creator} | ${item.difficulty}</div>
+            ${verifierBlock}
           </div>
-          <button class="btn-play-card" onclick="playCloudLevel('${item.token}')">PLAY</button>`;
+          <button class="btn-play-card" onclick="playCloudLevel('${item.token}', '${item.difficulty}', ${item.verified}, ${item.id})">PLAY</button>`;
         wrapper.appendChild(card);
       });
     } catch (e) { wrapper.innerHTML = `<p style="color:#ff3333;">System Error</p>`; }
   }
 
-  function playCloudLevel(tokenString) {
+  function playCloudLevel(tokenString, difficulty, verifiedStatus, levelId) {
     gameMode = "CUSTOM";
     currentActiveToken = tokenString;
+    currentLevelDifficulty = difficulty || "🟢 Easy";
+    isCurrentLevelVerified = !!verifiedStatus;
+    currentLevelId = levelId;
+
+    document.getElementById("btn-game-exit").setAttribute("onclick", "navTo('play-custom')");
+
     parseLevelBlueprint(tokenString);
     msg = "Loaded custom map layout!";
     navTo("game");
@@ -542,6 +817,9 @@
   function startCampaign() {
     gameMode = "CAMPAIGN";
     level = 1;
+    isCurrentLevelVerified = false;
+    currentLevelId = null;
+    document.getElementById("btn-game-exit").setAttribute("onclick", "navTo('menu')");
     msg = levelMaps[level].intro;
     parseLevelBlueprint(levelMaps[level].token);
     upd();
@@ -557,7 +835,7 @@
     
     let visualRows = parts[4].split("/");
     for (let r = 0; r < gridSize; r++) {
-      let rowY = r; // Match row coordinate generation precisely with canvas top-down format
+      let rowY = (gridSize - 1) - r; 
       let lineChars = Array.from(visualRows[r] || "");
       for (let colX = 0; colX < gridSize; colX++) {
         let char = lineChars[colX] || ".";
@@ -583,9 +861,47 @@
 
   function areGatesUnlocked() { return togglePlatesOpen || checkHoldPlatesActive(); }
 
+  // ==========================================
+  // 🏆 POINT DELIVERY HANDLER
+  // ==========================================
+  async function awardVerifiedPoints(levelId) {
+    if (!isCurrentLevelVerified || !activeUserToken || !databaseClient || !levelId) return;
+
+    try {
+      let { data: existing } = await databaseClient
+        .from('level_completions')
+        .select('id')
+        .eq('user_id', activeUserToken)
+        .eq('level_id', levelId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log("Level already cleared by this user. No points awarded.");
+        return; 
+      }
+
+      let pointsAwarded = 0;
+      if (currentLevelDifficulty.includes("Easy")) pointsAwarded = 1;
+      else if (currentLevelDifficulty.includes("Medium")) pointsAwarded = 3;
+      else if (currentLevelDifficulty.includes("Hard")) pointsAwarded = 5;
+      else if (currentLevelDifficulty.includes("Extreme")) pointsAwarded = 10;
+
+      let { data: userRecord } = await databaseClient.from('wizard_users').select('points').eq('username', activeUserToken).single();
+      await databaseClient.from('wizard_users').update({ points: (userRecord.points || 0) + pointsAwarded }).eq('username', activeUserToken);
+
+      await databaseClient.from('level_completions').insert([{ user_id: activeUserToken, level_id: levelId }]);
+
+      alert(`🏆 First-time completion! You earned ${pointsAwarded} points!`);
+    } catch (e) {
+      console.error("Error finalizing reward:", e);
+    }
+  }
+
+  // ==========================================
+  // 🕹️ MOVEMENT ENGINE
+  // ==========================================
   function handleMove(dx, dy) {
-    // Invert dy checking to account for standard top-to-bottom array coordinate alignment (Up arrow moves to lower index row)
-    let nextX = x + dx; let nextY = y - dy; 
+    let nextX = x + dx; let nextY = y + dy; 
     if (nextX < 0 || nextX >= gridSize || nextY < 0 || nextY >= gridSize) return;
 
     let targetTile = boardState[`${nextX},${nextY}`] || ".";
@@ -593,19 +909,19 @@
     
     while (blocks.some(b => b.x === checkX && b.y === checkY)) {
       let idx = blocks.findIndex(b => b.x === checkX && b.y === checkY);
-      boxChain.push(idx); checkX += dx; checkY -= dy;
+      boxChain.push(idx); checkX += dx; checkY += dy;
     }
 
     if (boxChain.length > 0) {
       let lastBlockNextX = nextX + (boxChain.length * dx);
-      let lastBlockNextY = nextY - (boxChain.length * dy);
+      let lastBlockNextY = nextY + (boxChain.length * dy);
       if (lastBlockNextX < 0 || lastBlockNextX >= gridSize || lastBlockNextY < 0 || lastBlockNextY >= gridSize) return;
       
       let lastBlockTargetTile = boardState[`${lastBlockNextX},${lastBlockNextY}`] || ".";
       if (lastBlockTargetTile === "T" || lastBlockTargetTile === "H" || (lastBlockTargetTile === "G" && !areGatesUnlocked())) return; 
 
       for (let i = boxChain.length - 1; i >= 0; i--) {
-        let bIdx = boxChain[i]; blocks[bIdx].x += dx; blocks[bIdx].y -= dy;
+        let bIdx = boxChain[i]; blocks[bIdx].x += dx; blocks[bIdx].y += dy;
       }
 
       if (lastBlockTargetTile === "P") { togglePlatesOpen = !togglePlatesOpen; msg = "Box hit toggle! 🔴"; }
@@ -630,7 +946,7 @@
 
     if (boardState[`${x},${y}`] === "K") { keysHeld++; boardState[`${x},${y}`] = "."; msg = "Key item added! 🔑"; }
     if (boardState[`${x},${y}`] === "P") { togglePlatesOpen = !togglePlatesOpen; msg = "Toggle Switch shifted! 🔴"; }
-    if (currentTile === "X") { boardState[`${x - dx},${y + dy}`] = "#"; }
+    if (currentTile === "X") { boardState[`${x - dx},${y - dy}`] = "#"; }
 
     if (x === portal1.x && y === portal1.y) { x = portal2.x; y = portal2.y; msg = "Teleported! 🌌"; } 
     else if (x === portal2.x && y === portal2.y) { x = portal1.x; y = portal1.y; msg = "Teleported! 🌌"; }
@@ -639,11 +955,21 @@
     if (boardState[`${x},${y}`] === "M") { msg = "Blown up by a mine! 💥"; resetLevelState(); return; }
 
     if (boardState[`${x},${y}`] === "W") {
-      if (gameMode === "CUSTOM") { alert("Custom map cleared! 🏆"); navTo("menu"); return; } 
-      else {
-        level++; let nextMap = levelMaps[level];
-        if(!nextMap) { alert("YOU CLEARED THE ENTIRE GAME! 🏆🔮"); navTo("menu"); return; }
-        msg = nextMap.intro; parseLevelBlueprint(nextMap.token);
+      if (gameMode === "CUSTOM") { 
+        awardVerifiedPoints(currentLevelId); 
+        alert("Custom map cleared! 🏆"); 
+        navTo("play-custom"); 
+        return; 
+      } else {
+        level++; 
+        let nextMap = levelMaps[level];
+        if(!nextMap) { 
+          alert("YOU CLEARED THE ENTIRE GAME! 🏆🔮"); 
+          navTo("menu"); 
+          return; 
+        }
+        msg = nextMap.intro; 
+        parseLevelBlueprint(nextMap.token);
       }
     }
     upd();
@@ -663,7 +989,7 @@
     if (msg !== "") { document.getElementById("story").innerText = msg; msg = ""; }
 
     let gatesOpen = areGatesUnlocked(); let mapVisual = ""; 
-    for (let rowY = 0; rowY < gridSize; rowY++) {
+    for (let rowY = gridSize - 1; rowY >= 0; rowY--) { 
       for (let colX = 0; colX < gridSize; colX++) {
         let dist = Math.max(Math.abs(colX - x), Math.abs(rowY - y));
         if (useFog && dist > 2) { mapVisual += "🌫️"; } 
